@@ -46,6 +46,8 @@ def main() -> None:
     mask_img            = load_mask()
 
     cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     if not cap.isOpened():
         print("Cannot open webcam.")
         return
@@ -53,7 +55,7 @@ def main() -> None:
     t0           = time.time()
     sparkles: list[Sparkle] = []
     was_pinching: dict[int, bool] = {}   # per-hand pinch state for rising-edge detection
-
+    
     try:
         while True:
             ok, frame = cap.read()
