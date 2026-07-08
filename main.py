@@ -21,8 +21,10 @@ Press 'q' to quit.
 
 Performance notes:
   - Face detection only runs when a hand is visible (skips ML inference otherwise)
+  - Filter is applied only to the bounding box of the visible window (not full frame)
+  - Oil Painting and Sketch run at half resolution internally (4× fewer pixels)
+  - Window compositing uses cv2.copyTo (uint8 masked copy, no float blending)
   - Mask filter is applied to the bounding-box crop only (not the full frame)
-  - Oil painting uses 3 bilateral passes (down from 4) — still looks good, faster
 """
 
 import time
@@ -97,8 +99,16 @@ def main() -> None:
                     win_mask = circle_mask(frame.shape, pa, pb)
 
                 # ── 3. Compose inner content: filter + mask ───────────────
-                # Apply filter to the full camera frame (background inside window)
-                inner = filter_fn(frame) if filter_fn else frame.copy()
+                # Only filter the bounding box of the visible window to
+                # avoid running expensive filters over the full 1280×720 frame.
+                inner = frame.copy()
+
+                if filter_fn:
+                    nz = cv2.findNonZero(win_mask)
+                    if nz is not None:
+                        bx, by, bw, bh = cv2.boundingRect(nz)
+                        crop = frame[by:by+bh, bx:bx+bw]
+                        inner[by:by+bh, bx:bx+bw] = filter_fn(crop)
 
                 # Face detection only runs when a hand is visible.
                 # Skipping it when no hand is up saves one full ML inference per frame.
@@ -109,8 +119,9 @@ def main() -> None:
                     reset_transform()   # reset EMA when face is lost
 
                 # ── 4. Clip: inner inside window, plain camera outside ─────
-                win3   = win_mask[:, :, None].astype(np.float32) / 255.0
-                output = (inner * win3 + frame * (1 - win3)).astype(np.uint8)
+                # Use direct masked copy instead of full-frame float blending
+                output = frame.copy()
+                cv2.copyTo(inner, win_mask, output)
 
                 # ── 5. Sparkle burst on pinch rising edge ─────────────────
                 for i, lm in enumerate(hands):

@@ -86,8 +86,8 @@ def render_mask(
     # Spider-Man's lenses are wider than real eyes, so the naive eye-to-eye
     # alignment leaves the mask about half the correct size.
     cx, cy = (eye_l + eye_r) / 2
-    M[0, 2] += (1 - SCALE_FACTOR) * (M[0, 0] * cx + M[0, 1] * cy)
-    M[1, 2] += (1 - SCALE_FACTOR) * (M[1, 0] * cx + M[1, 1] * cy)
+    M[0, 2] = SCALE_FACTOR * M[0, 2] + (1 - SCALE_FACTOR) * cx
+    M[1, 2] = SCALE_FACTOR * M[1, 2] + (1 - SCALE_FACTOR) * cy
     M[:, :2] *= SCALE_FACTOR
 
     # Shift the mask upward along the face axis to cover the hairline
